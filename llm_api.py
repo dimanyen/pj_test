@@ -109,7 +109,7 @@ class LLMAPI:
 def main():
     """主程式"""
     # API 設定
-    BASE_URL = "https://2c7cf6f40827.ngrok-free.app"
+    BASE_URL = "https://llm.cubeapp945566.work"
     API_KEY = "sk-local-123"
     
     # 建立 API 客戶端

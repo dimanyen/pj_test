@@ -250,13 +250,13 @@ def parse_args(argv: List[str]):
     import argparse
 
     parser = argparse.ArgumentParser(description="ngrok 適應性 Chat Completions 壓測器")
-    parser.add_argument("--url", default="https://83223c7508ae.ngrok-free.app/chat/completions", help="目標 API URL")
+    parser.add_argument("--url", default="https://cf26d505c0e6.ngrok-free.app/chat/completions", help="目標 API URL")
     parser.add_argument("--api-key", default=os.getenv("API_KEY", "sk-local-123"), help="Authorization Bearer 金鑰")
     parser.add_argument("--model", default="gpt-oss-120b", help="模型名稱")
     parser.add_argument("--prompt", default="什麼是人工智慧", help="使用者訊息內容")
     parser.add_argument("--temperature", type=float, default=0.7, help="溫度")
-    parser.add_argument("--concurrency", type=int, default=1, help="並發 worker 數")
-    parser.add_argument("--requests", type=int, default=1, help="總請求數")
+    parser.add_argument("--concurrency", type=int, default=5, help="並發 worker 數")
+    parser.add_argument("--requests", type=int, default=10, help="總請求數")
     parser.add_argument("--rps", type=float, default=0.0, help="全域節流，每 worker 目標請求數/秒")
     parser.add_argument("--timeout", type=float, default=120.0, help="單請求逾時秒數")
     parser.add_argument("--payload-file", help="覆寫/合併 JSON 載荷檔路徑")

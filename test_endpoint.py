@@ -16,17 +16,17 @@ def test_endpoint_health(base_url: str):
     print("=" * 50)
     
     # 測試 1: 基本連線
-    print("1. 測試基本連線...")
-    try:
-        response = requests.get(base_url, timeout=10)
-        print(f"   狀態碼: {response.status_code}")
-        print(f"   回應類型: {response.headers.get('Content-Type', 'unknown')}")
-        if response.status_code == 200:
-            print("   ✅ 基本連線成功")
-        else:
-            print(f"   ⚠️  連線成功但狀態碼異常: {response.status_code}")
-    except Exception as e:
-        print(f"   ❌ 連線失敗: {e}")
+    # print("1. 測試基本連線...")
+    # try:
+    #     response = requests.get(base_url, timeout=10)
+    #     print(f"   狀態碼: {response.status_code}")
+    #     print(f"   回應類型: {response.headers.get('Content-Type', 'unknown')}")
+    #     if response.status_code == 200:
+    #         print("   ✅ 基本連線成功")
+    #     else:
+    #         print(f"   ⚠️  連線成功但狀態碼異常: {response.status_code}")
+    # except Exception as e:
+    #     print(f"   ❌ 連線失敗: {e}")
     
     # print()
     
@@ -181,7 +181,7 @@ def test_endpoint_health(base_url: str):
 
 def main():
     """主程式"""
-    base_url = "https://9661684f2e3e.ngrok-free.app"
+    base_url = "https://llm.cubeapp945566.work"
     
     print("🔍 API 端點診斷工具 (含 POST 測試)")
     print("=" * 50)
