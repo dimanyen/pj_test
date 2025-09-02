@@ -42,7 +42,14 @@ python app.py
 
 ## 訪問網站
 
-啟動後訪問: http://localhost:5000
+### 方法一：獨立 HTML 檔案（推薦）
+1. 啟動 API 伺服器後，直接開啟 `index.html` 檔案
+2. 或訪問: http://localhost:5002
+
+### 方法二：嵌入式網頁
+訪問: http://localhost:5002/embedded
+
+**注意**: 埠號已從 5000 改為 5002
 
 ## API 端點
 
@@ -57,7 +64,7 @@ python app.py
 
 **問答 API**:
 ```bash
-curl -X POST http://localhost:5000/api/ask \
+curl -X POST http://localhost:5002/api/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "cubeapp 是什麼？"}'
 ```
@@ -85,6 +92,7 @@ export LITELLM_API_KEY=sk-local-123
 ```
 pj_test/
 ├── app.py                 # Flask 主程式
+├── index.html            # 獨立網頁檔案
 ├── kb_rag.py             # RAG 核心功能
 ├── start_server.py       # 啟動腳本
 ├── requirements.txt      # 依賴套件
@@ -93,6 +101,37 @@ pj_test/
 ├── kb_store.jsonl       # 文件切塊儲存（自動生成）
 └── kb_summary_cache.json # 摘要快取（自動生成）
 ```
+
+## 獨立網頁檔案使用說明
+
+### 特色功能
+- **完全獨立**: `index.html` 可以在任何瀏覽器中開啟，無需伺服器
+- **可設定的 API 網址**: 支援連接到不同的 API 伺服器
+- **請求超時設定**: 可調整 API 請求的超時時間
+- **自動狀態檢查**: 定期檢查 API 伺服器狀態
+- **跨域支援**: 使用 CORS 支援跨域請求
+
+### 使用步驟
+1. **啟動 API 伺服器**:
+   ```bash
+   python start_server.py
+   ```
+
+2. **開啟網頁檔案**:
+   - 直接雙擊 `index.html` 檔案，或
+   - 在瀏覽器中開啟該檔案
+
+3. **設定連接**:
+   - 檢查「API 基礎網址」是否正確（預設: http://localhost:5002）
+   - 調整「請求超時」時間（預設: 120 秒）
+
+4. **開始使用**:
+   - 等待系統狀態顯示「系統就緒」
+   - 輸入問題並點擊「提問」
+
+### 網路設定說明
+- 如果 API 伺服器在其他機器上，修改「API 基礎網址」為對應的 IP 和埠號
+- 例如: `http://192.168.1.100:5002`
 
 ## 疑難排解
 

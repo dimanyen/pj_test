@@ -18,6 +18,14 @@ def check_dependencies():
         print("✗ Flask 未安裝，正在安裝...")
         subprocess.run([sys.executable, "-m", "pip", "install", "flask>=3.0.0"], check=True)
         print("✓ Flask 安裝完成")
+    
+    try:
+        import flask_cors
+        print("✓ Flask-CORS 已安裝")
+    except ImportError:
+        print("✗ Flask-CORS 未安裝，正在安裝...")
+        subprocess.run([sys.executable, "-m", "pip", "install", "flask-cors>=4.0.0"], check=True)
+        print("✓ Flask-CORS 安裝完成")
 
 def check_knowledge_base():
     """檢查知識庫索引是否存在"""

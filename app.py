@@ -1,9 +1,12 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, send_from_directory
+from flask_cors import CORS
 import os
 import traceback
 from kb_rag import ask, load_index
 
 app = Flask(__name__)
+# 啟用 CORS 以支援跨域請求
+CORS(app)
 
 # 全域變數來快取索引
 _index = None
@@ -363,7 +366,12 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index():
-    """主頁面"""
+    """主頁面 - 重定向到獨立的 HTML 檔案"""
+    return send_from_directory('.', 'index.html')
+
+@app.route('/embedded')
+def embedded():
+    """嵌入式頁面 - 使用原本的模板"""
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/api/status')

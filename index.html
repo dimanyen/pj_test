@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知識庫問答系統</title>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .config-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .config-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .config-label {
+            min-width: 120px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .config-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .question-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        .question-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .ask-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .ask-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .ask-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #667eea;
+            font-size: 16px;
+            position: relative;
+        }
+        
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .spinner-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .spinner-outer {
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(102, 126, 234, 0.1);
+            border-top: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            animation: spin-slow 2s linear infinite;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .spinner-inner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(118, 75, 162, 0.2);
+            border-top: 3px solid #764ba2;
+            border-radius: 50%;
+            animation: spin-fast 0.8s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .loading-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: pulse-dot 1.4s ease-in-out infinite both;
+        }
+        
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        .loading-dot:nth-child(3) { animation-delay: 0s; }
+        
+        .loading-text {
+            font-weight: 500;
+            margin-top: 10px;
+            animation: breathe 2s ease-in-out infinite;
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            color: #999;
+            margin-top: 8px;
+            opacity: 0.8;
+        }
+        
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes spin-fast {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @keyframes pulse-dot {
+            0%, 80%, 100% {
+                transform: scale(0.6);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes breathe {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(0.98);
+            }
+        }
+        
+        .answer-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+        
+        .answer-title {
+            color: #2c3e50;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .answer-content {
+            color: #34495e;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        
+        /* Markdown 內容樣式 */
+        .answer-content h1,
+        .answer-content h2,
+        .answer-content h3,
+        .answer-content h4,
+        .answer-content h5,
+        .answer-content h6 {
+            color: #2c3e50;
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+        }
+        
+        .answer-content h1 { font-size: 1.8em; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+        .answer-content h2 { font-size: 1.5em; border-bottom: 1px solid #bdc3c7; padding-bottom: 3px; }
+        .answer-content h3 { font-size: 1.3em; }
+        .answer-content h4 { font-size: 1.1em; }
+        .answer-content h5 { font-size: 1em; }
+        .answer-content h6 { font-size: 0.9em; }
+        
+        .answer-content p {
+            margin: 12px 0;
+        }
+        
+        .answer-content ul,
+        .answer-content ol {
+            margin: 12px 0 12px 20px;
+            padding-left: 20px;
+        }
+        
+        .answer-content li {
+            margin: 6px 0;
+        }
+        
+        .answer-content blockquote {
+            border-left: 4px solid #3498db;
+            margin: 16px 0;
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-radius: 0 6px 6px 0;
+            font-style: italic;
+        }
+        
+        .answer-content code {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #e74c3c;
+        }
+        
+        .answer-content pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            overflow-x: auto;
+            line-height: 1.4;
+        }
+        
+        .answer-content pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-size: 0.95em;
+        }
+        
+        .answer-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+            border: 1px solid #ddd;
+        }
+        
+        .answer-content th,
+        .answer-content td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .answer-content th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .answer-content tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .answer-content strong {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        
+        .answer-content em {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .answer-content a {
+            color: #3498db;
+            text-decoration: none;
+            border-bottom: 1px dotted #3498db;
+        }
+        
+        .answer-content a:hover {
+            color: #2980b9;
+            border-bottom: 1px solid #2980b9;
+        }
+        
+        .answer-content hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 24px 0;
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ready {
+            background-color: #4CAF50;
+        }
+        
+        .status-error {
+            background-color: #f44336;
+        }
+        
+        .system-status {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        @media (max-width: 768px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .config-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .config-label {
+                min-width: auto;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 知識庫問答系統</h1>
+            <p>基於 RAG 技術的智能問答助手</p>
+        </div>
+        
+        <div class="content">            
+            
+            <div class="system-status">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">檢查系統狀態中...</span>
+            </div>
+            
+            <div class="input-section">
+                <div class="input-group">
+                    <input type="text" 
+                           class="question-input" 
+                           id="questionInput"
+                           placeholder="請輸入您的問題..."
+                           maxlength="500">
+                    <button class="ask-btn" id="askBtn" onclick="askQuestion()">
+                        提問
+                    </button>
+                </div>
+            </div>
+            
+            <div class="answer-section">
+                <div class="answer-title">💬 回答</div>
+                <div class="answer-content" id="answerContent">
+                    歡迎使用知識庫問答系統！<br><br>
+                    使用說明：<br>
+                    1. 確保 Flask API 伺服器正在運行<br>
+                    2. 檢查上方的 API 基礎網址設定是否正確<br>
+                    3. 在上方輸入框中輸入您的問題<br>
+                    4. 點擊「提問」按鈕或按 Enter 鍵
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+        
+        // 獲取 API 基礎網址
+        function getApiBaseUrl() {
+            const apiBaseUrlElement = document.getElementById('apiBaseUrl');
+            return apiBaseUrlElement ? apiBaseUrlElement.value.trim() : 'http://localhost:5002';
+        }
+        
+        // 獲取請求超時時間
+        function getRequestTimeout() {
+            const requestTimeoutElement = document.getElementById('requestTimeout');
+            const timeout = requestTimeoutElement ? parseInt(requestTimeoutElement.value) : 120;
+            return (timeout || 120) * 1000; // 轉換為毫秒
+        }
+        
+        // 檢查系統狀態
+        async function checkSystemStatus() {
+            try {
+                const baseUrl = getApiBaseUrl();
+                const timeout = getRequestTimeout();
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), Math.min(timeout, 10000)); // 狀態檢查最多 10 秒
+                
+                let response;
+                try {
+                    response = await fetch(`${baseUrl}/api/status`, {
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+                
+                const data = await response.json();
+                
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                
+                if (data.status === 'ready') {
+                    indicator.className = 'status-indicator status-ready';
+                    statusText.textContent = '系統就緒，可以開始提問';
+                } else {
+                    indicator.className = 'status-indicator status-error';
+                    statusText.textContent = '系統未就緒：' + data.message;
+                }
+            } catch (error) {
+                const indicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                indicator.className = 'status-indicator status-error';
+                
+                if (error.name === 'AbortError') {
+                    statusText.textContent = '連接超時，請檢查伺服器是否啟動';
+                } else {
+                    statusText.textContent = '無法連接到系統，請檢查 API 網址設定';
+                }
+            }
+        }
+        
+        // 提問函數
+        async function askQuestion() {
+            if (isLoading) return;
+            
+            const questionInput = document.getElementById('questionInput');
+            const askBtn = document.getElementById('askBtn');
+            const answerContent = document.getElementById('answerContent');
+            
+            const question = questionInput.value.trim();
+            if (!question) {
+                alert('請輸入問題！');
+                return;
+            }
+            
+            const baseUrl = getApiBaseUrl();
+            const timeout = getRequestTimeout();
+            
+            isLoading = true;
+            askBtn.disabled = true;
+            askBtn.textContent = '思考中...';
+            
+            // 顯示載入動畫
+            answerContent.innerHTML = `
+                <div class="loading">
+                    <div class="loading-container">
+                        <div class="spinner-container">
+                            <div class="spinner-outer"></div>
+                            <div class="spinner"></div>
+                            <div class="spinner-inner"></div>
+                        </div>
+                        <div class="loading-text">🤔 正在查詢知識庫並生成回答...</div>
+                        <div class="loading-dots">
+                            <div class="loading-dot"></div>
+                            <div class="loading-dot"></div>
+                            <div class="loading-dot"></div>
+                        </div>
+                        <div class="loading-subtext">請求超時設定: ${timeout/1000} 秒</div>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+                
+                let response;
+                try {
+                    response = await fetch(`${baseUrl}/api/ask`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ question: question }),
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 使用 marked 解析 Markdown 內容
+                    answerContent.innerHTML = marked.parse(data.answer);
+                } else {
+                    answerContent.innerHTML = `<div class="error">錯誤：${data.error}</div>`;
+                }
+                
+            } catch (error) {
+                let errorMessage = '網路錯誤：' + error.message;
+                
+                if (error.name === 'AbortError') {
+                    errorMessage = `請求超時（${timeout/1000} 秒），請稍後再試或增加超時時間設定`;
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '無法連接到伺服器，請檢查：\n1. API 伺服器是否正在運行\n2. API 基礎網址是否正確\n3. 防火牆或網路設定';
+                }
+                
+                answerContent.innerHTML = `<div class="error">${errorMessage}</div>`;
+            } finally {
+                isLoading = false;
+                askBtn.disabled = false;
+                askBtn.textContent = '提問';
+            }
+        }
+        
+        // 按 Enter 鍵提問
+        document.getElementById('questionInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !isLoading) {
+                askQuestion();
+            }
+        });
+        
+        // API 基礎網址變更時重新檢查狀態 (僅當元素存在時)
+        const apiBaseUrlElement = document.getElementById('apiBaseUrl');
+        if (apiBaseUrlElement) {
+            apiBaseUrlElement.addEventListener('change', function() {
+                setTimeout(checkSystemStatus, 500);
+            });
+        }
+        
+        // 頁面載入時檢查系統狀態
+        window.onload = function() {
+            checkSystemStatus();
+        };
+        
+        // 每 30 秒自動檢查一次系統狀態
+        setInterval(checkSystemStatus, 30000);
+    </script>
+</body>
+</html>
