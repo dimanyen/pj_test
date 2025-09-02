@@ -107,7 +107,7 @@ def summarize_document(doc_text: str, source_path: str, cache: Dict[str, str]) -
         return cache[source_path]
 
     # 控制輸入長度避免 prompt 過大（粗略取前 ~6000 字）
-    doc_snippet = doc_text[:6000]
+    doc_snippet = doc_text[:12000]
 
     try:
         messages = [
@@ -124,8 +124,8 @@ def summarize_document(doc_text: str, source_path: str, cache: Dict[str, str]) -
         resp = client.chat.completions.create(
             model=CHAT_MODEL,
             messages=messages,
-            temperature=0.2,
-            max_tokens=SUMMARY_MAX_TOKENS
+            temperature=0.2
+            
         )
         summary = resp.choices[0].message.content.strip()
         # 簡單清洗

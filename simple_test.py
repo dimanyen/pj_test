@@ -12,7 +12,7 @@ import time
 
 def simple_test():
     """簡單的 API 測試"""
-    base_url = "https://83223c7508ae.ngrok-free.app"
+    base_url = "https://cf26d505c0e6.ngrok-free.app"
     url = f"{base_url}/chat/completions"
     
     headers = {
