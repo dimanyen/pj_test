@@ -436,12 +436,15 @@ def api_ask():
             stream_flag = str(q).lower() in ['1', 'true', 'yes']
 
         if not stream_flag:
-            # 非串流：直接回傳完整答案
-            answer = ask(question)
+            # 非串流：直接回傳完整答案（包含統計資訊）
+            result = ask(question)
             return jsonify({
                 'success': True,
-                'answer': answer,
-                'question': question
+                'answer': result['answer'],
+                'question': question,
+                'timing': result['timing'],
+                'tokens': result['tokens'],
+                'retrieved_chunks': result['retrieved_chunks']
             })
         else:
             # 串流：以 NDJSON 逐步回傳
