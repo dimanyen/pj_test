@@ -425,12 +425,15 @@ def api_ask():
                 }), 500
         
         # 呼叫 RAG 系統
-        answer = ask(question)
+        result = ask(question)
         
         return jsonify({
             'success': True,
-            'answer': answer,
-            'question': question
+            'answer': result['answer'],
+            'question': question,
+            'timing': result['timing'],
+            'tokens': result['tokens'],
+            'retrieved_chunks': result['retrieved_chunks']
         })
         
     except FileNotFoundError as e:

@@ -3,7 +3,8 @@ import json
 import glob
 import faiss
 import argparse
-from typing import List, Tuple, Dict
+import time
+from typing import List, Tuple, Dict, Optional
 from dataclasses import dataclass
 
 import numpy as np
@@ -15,8 +16,8 @@ from openai import OpenAI
 BASE_URL = os.getenv("LITELLM_BASE", "https://llm.cubeapp945566.work")
 API_KEY  = os.getenv("LITELLM_API_KEY", "sk-local-123")
 
-# EMBEDDING_MODEL = "bge-m3"
-EMBEDDING_MODEL = "intfloat-multilingual-e5-large"
+EMBEDDING_MODEL = "bge-m3"
+# EMBEDDING_MODEL = "intfloat-multilingual-e5-large"
 CHAT_MODEL      = "gpt-oss-120b"
 
 client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
@@ -233,11 +234,18 @@ def format_context(results: List[Tuple[DocChunk, float]]) -> str:
         blocks.append(f"[{rank}] (score={s:.4f}) source={c.source}\n{c.text}")
     return "\n\n---\n\n".join(blocks)
 
-def ask(query: str) -> str:
+def ask(query: str) -> Dict:
+    start_time = time.time()
+    
+    # 檢索階段
+    retrieval_start = time.time()
     index, _ = load_index()
     hits = search(index, query, k=TOP_K)
     context = format_context(hits)
+    retrieval_time = time.time() - retrieval_start
 
+    # 生成階段
+    generation_start = time.time()
     system = (
         "你是嚴謹的技術助理。"
         "只根據提供的『檢索內容』回答；若無法從內容中找到答案，請明確說不知道並提出需要的資訊。"
@@ -257,7 +265,33 @@ def ask(query: str) -> str:
         ],
         temperature=0.2
     )
-    return resp.choices[0].message.content
+    generation_time = time.time() - generation_start
+    total_time = time.time() - start_time
+    
+    # 計算 token 使用量
+    usage = resp.usage
+    prompt_tokens = usage.prompt_tokens if usage else 0
+    completion_tokens = usage.completion_tokens if usage else 0
+    total_tokens = usage.total_tokens if usage else 0
+    
+    # 計算每秒生成的 token 數量
+    tokens_per_second = round(completion_tokens / generation_time, 2) if generation_time > 0 else 0
+    
+    return {
+        'answer': resp.choices[0].message.content,
+        'timing': {
+            'total_time': round(total_time, 3),
+            'retrieval_time': round(retrieval_time, 3),
+            'generation_time': round(generation_time, 3)
+        },
+        'tokens': {
+            'prompt_tokens': prompt_tokens,
+            'completion_tokens': completion_tokens,
+            'total_tokens': total_tokens,
+            'tokens_per_second': tokens_per_second
+        },
+        'retrieved_chunks': len(hits)
+    }
 
 # === CLI ==============================================
 def main():
@@ -275,9 +309,16 @@ def main():
     if args.cmd == "build":
         build_index(args.folder)
     elif args.cmd == "ask":
-        ans = ask(args.q)
+        result = ask(args.q)
         print("\n===== 答案 =====\n")
-        print(ans)
+        print(result['answer'])
+        print(f"\n===== 統計資訊 =====")
+        print(f"總查詢時間: {result['timing']['total_time']}秒")
+        print(f"檢索時間: {result['timing']['retrieval_time']}秒")
+        print(f"生成時間: {result['timing']['generation_time']}秒")
+        print(f"檢索到的文件片段: {result['retrieved_chunks']}個")
+        print(f"Token 使用量 - 輸入: {result['tokens']['prompt_tokens']}, 輸出: {result['tokens']['completion_tokens']}, 總計: {result['tokens']['total_tokens']}")
+        print(f"生成速度: {result['tokens']['tokens_per_second']} tokens/秒")
 
 if __name__ == "__main__":
     main()
