@@ -259,6 +259,46 @@ def ask(query: str) -> str:
     )
     return resp.choices[0].message.content
 
+def ask_stream(query: str):
+    """串流問答：先檢索再以 Chat Completions stream 回傳增量內容。
+
+    Yields:
+        str: 回覆的增量文字（delta content）
+    """
+    index, _ = load_index()
+    hits = search(index, query, k=TOP_K)
+    context = format_context(hits)
+
+    system = (
+        "你是嚴謹的技術助理。"
+        "只根據提供的『檢索內容』回答；若無法從內容中找到答案，請明確說不知道並提出需要的資訊。"
+        "回覆使用繁體中文，並在結尾列出引用片段的 [編號] 與 source 路徑。"
+    )
+    user = (
+        f"查詢：{query}\n\n"
+        f"檢索內容（依相關度排序；每段已含該文件摘要前言）：\n{context}\n\n"
+        "請根據以上內容回答。若多處出現相同事實，優先以排名較前者為準。"
+    )
+
+    stream = client.chat.completions.create(
+        model=CHAT_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        temperature=0.2,
+        stream=True
+    )
+
+    for chunk in stream:
+        try:
+            # openai>=1.0 ChatCompletionChunk
+            delta = chunk.choices[0].delta.content or ""
+        except Exception:
+            delta = ""
+        if delta:
+            yield delta
+
 # === CLI ==============================================
 def main():
     parser = argparse.ArgumentParser(description="簡易 RAG 知識庫（LiteLLM + FAISS + 文件摘要前綴）")

@@ -571,7 +571,7 @@
             }
         }
         
-        // 提問函數
+        // 提問函數（支援 NDJSON 串流）
         async function askQuestion() {
             if (isLoading) return;
             
@@ -618,25 +618,71 @@
                 
                 let response;
                 try {
-                    response = await fetch(`${baseUrl}/api/ask`, {
+                    const url = `${baseUrl}/api/ask?stream=true`;
+                    response = await fetch(url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Accept': 'application/x-ndjson'
                         },
-                        body: JSON.stringify({ question: question }),
+                        body: JSON.stringify({ question }),
                         signal: controller.signal
                     });
                 } finally {
                     clearTimeout(timeoutId);
                 }
                 
-                const data = await response.json();
-                
-                if (data.success) {
-                    // 使用 marked 解析 Markdown 內容
-                    answerContent.innerHTML = marked.parse(data.answer);
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                if (contentType.includes('application/x-ndjson') && response.body) {
+                    // 串流解析 NDJSON
+                    answerContent.innerHTML = '';
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let fullText = '';
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed) continue;
+                            try {
+                                const obj = JSON.parse(trimmed);
+                                if (obj.type === 'delta' && obj.content) {
+                                    fullText += obj.content;
+                                    // 先以純文字即時顯示，避免 Markdown 局部閃爍
+                                    answerContent.textContent = fullText;
+                                } else if (obj.type === 'error') {
+                                    throw new Error(obj.error || '未知錯誤');
+                                }
+                            } catch (_) {
+                                // 忽略格式不正確的行
+                            }
+                        }
+                    }
+                    // 若尚有殘留緩衝行
+                    if (buffer.trim()) {
+                        try {
+                            const obj = JSON.parse(buffer.trim());
+                            if (obj.type === 'delta' && obj.content) {
+                                fullText += obj.content;
+                                answerContent.textContent = fullText;
+                            }
+                        } catch (_) {}
+                    }
+                    // 串流結束後再進行 Markdown 轉換
+                    answerContent.innerHTML = marked.parse(fullText);
                 } else {
-                    answerContent.innerHTML = `<div class="error">錯誤：${data.error}</div>`;
+                    // 傳統 JSON 回傳
+                    const data = await response.json();
+                    if (data.success) {
+                        answerContent.innerHTML = marked.parse(data.answer);
+                    } else {
+                        answerContent.innerHTML = `<div class="error">錯誤：${data.error}</div>`;
+                    }
                 }
                 
             } catch (error) {
@@ -644,7 +690,7 @@
                 
                 if (error.name === 'AbortError') {
                     errorMessage = `請求超時（${timeout/1000} 秒），請稍後再試或增加超時時間設定`;
-                } else if (error.message.includes('Failed to fetch')) {
+                } else if ((error.message || '').includes('Failed to fetch')) {
                     errorMessage = '無法連接到伺服器，請檢查：\n1. API 伺服器是否正在運行\n2. API 基礎網址是否正確\n3. 防火牆或網路設定';
                 }
                 

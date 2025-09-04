@@ -1,8 +1,8 @@
-from flask import Flask, request, jsonify, render_template_string, send_from_directory
+from flask import Flask, request, jsonify, render_template_string, send_from_directory, Response, stream_with_context
 from flask_cors import CORS
 import os
 import traceback
-from kb_rag import ask, load_index
+from kb_rag import ask, load_index, ask_stream
 
 app = Flask(__name__)
 # 啟用 CORS 以支援跨域請求
@@ -424,14 +424,53 @@ def api_ask():
                     'error': '知識庫索引未建立，請先執行 python kb_rag.py build --folder knowledge_docs'
                 }), 500
         
-        # 呼叫 RAG 系統
-        answer = ask(question)
-        
-        return jsonify({
-            'success': True,
-            'answer': answer,
-            'question': question
-        })
+        # 是否使用串流
+        stream_flag = False
+        try:
+            stream_flag = bool(data.get('stream', False))
+        except Exception:
+            stream_flag = False
+        # 允許以 querystring 開啟：/api/ask?stream=true
+        if not stream_flag:
+            q = request.args.get('stream', '')
+            stream_flag = str(q).lower() in ['1', 'true', 'yes']
+
+        if not stream_flag:
+            # 非串流：直接回傳完整答案
+            answer = ask(question)
+            return jsonify({
+                'success': True,
+                'answer': answer,
+                'question': question
+            })
+        else:
+            # 串流：以 NDJSON 逐步回傳
+            def generate():
+                import json
+                # 開頭事件
+                start_obj = {
+                    'success': True,
+                    'type': 'start',
+                    'question': question
+                }
+                yield json.dumps(start_obj, ensure_ascii=False) + "\n"
+
+                try:
+                    for delta in ask_stream(question):
+                        if not delta:
+                            continue
+                        yield json.dumps({'type': 'delta', 'content': delta}, ensure_ascii=False) + "\n"
+                    # 結束事件
+                    yield json.dumps({'type': 'end'}, ensure_ascii=False) + "\n"
+                except Exception as e:
+                    err = {'success': False, 'type': 'error', 'error': str(e)}
+                    yield json.dumps(err, ensure_ascii=False) + "\n"
+
+            headers = {
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'
+            }
+            return Response(stream_with_context(generate()), mimetype='application/x-ndjson; charset=utf-8', headers=headers)
         
     except FileNotFoundError as e:
         return jsonify({
