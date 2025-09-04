@@ -535,7 +535,7 @@
                 const timeout = getRequestTimeout();
                 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), Math.min(timeout, 10000)); // 狀態檢查最多 10 秒
+                const timeoutId = setTimeout(() => controller.abort(), Math.min(timeout, 60000)); // 狀態檢查最多 10 秒
                 
                 let response;
                 try {
