@@ -571,7 +571,96 @@
             }
         }
         
-        // 提問函數（支援 NDJSON 串流）
+        // 向量搜尋函數
+        async function searchVector(question) {
+            const baseUrl = getApiBaseUrl();
+            const timeout = getRequestTimeout();
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(`${baseUrl}/api/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: question }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || '向量搜尋失敗');
+                }
+                
+                return data.context;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
+            }
+        }
+        
+        // 直接呼叫 LLM API
+        async function callLLM(question, context) {
+            const LLM_BASE_URL = 'https://llm.cubeapp945566.work';
+            const API_KEY = 'sk-local-123';
+            const timeout = getRequestTimeout();
+            
+            const system = (
+                "你是嚴謹的技術助理。" +
+                "只根據提供的『檢索內容』回答；若無法從內容中找到答案，請明確說不知道並提出需要的資訊。" +
+                "回覆使用繁體中文，並在結尾列出引用片段的 [編號] 與 source 路徑。"
+            );
+            
+            const user = (
+                `查詢：${question}\n\n` +
+                `檢索內容（依相關度排序；每段已含該文件摘要前言）：\n${context}\n\n` +
+                "請根據以上內容回答。若多處出現相同事實，優先以排名較前者為準。"
+            );
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(`${LLM_BASE_URL}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-oss-120b',
+                        messages: [
+                            { role: 'system', content: system },
+                            { role: 'user', content: user }
+                        ],
+                        temperature: 0.2,
+                        stream: true
+                    }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`LLM API HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
+            }
+        }
+        
+        // 提問函數（分離向量搜尋和 LLM 呼叫）
         async function askQuestion() {
             if (isLoading) return;
             
@@ -584,9 +673,6 @@
                 alert('請輸入問題！');
                 return;
             }
-            
-            const baseUrl = getApiBaseUrl();
-            const timeout = getRequestTimeout();
             
             isLoading = true;
             askBtn.disabled = true;
@@ -601,97 +687,88 @@
                             <div class="spinner"></div>
                             <div class="spinner-inner"></div>
                         </div>
-                        <div class="loading-text">🤔 正在查詢知識庫並生成回答...</div>
+                        <div class="loading-text">🔍 正在搜尋知識庫...</div>
                         <div class="loading-dots">
                             <div class="loading-dot"></div>
                             <div class="loading-dot"></div>
                             <div class="loading-dot"></div>
                         </div>
-                        <div class="loading-subtext">請求超時設定: ${timeout/1000} 秒</div>
                     </div>
                 </div>
             `;
             
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), timeout);
+                // 步驟 1: 向量搜尋
+                const context = await searchVector(question);
                 
-                let response;
-                try {
-                    const url = `${baseUrl}/api/ask?stream=true`;
-                    response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/x-ndjson'
-                        },
-                        body: JSON.stringify({ question }),
-                        signal: controller.signal
-                    });
-                } finally {
-                    clearTimeout(timeoutId);
-                }
+                // 更新載入狀態
+                answerContent.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-container">
+                            <div class="spinner-container">
+                                <div class="spinner-outer"></div>
+                                <div class="spinner"></div>
+                                <div class="spinner-inner"></div>
+                            </div>
+                            <div class="loading-text">🤖 正在生成回答...</div>
+                            <div class="loading-dots">
+                                <div class="loading-dot"></div>
+                                <div class="loading-dot"></div>
+                                <div class="loading-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
                 
-                const contentType = (response.headers.get('content-type') || '').toLowerCase();
-                if (contentType.includes('application/x-ndjson') && response.body) {
-                    // 串流解析 NDJSON
-                    answerContent.innerHTML = '';
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-                    let fullText = '';
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop();
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (!trimmed) continue;
-                            try {
-                                const obj = JSON.parse(trimmed);
-                                if (obj.type === 'delta' && obj.content) {
-                                    fullText += obj.content;
-                                    // 先以純文字即時顯示，避免 Markdown 局部閃爍
-                                    answerContent.textContent = fullText;
-                                } else if (obj.type === 'error') {
-                                    throw new Error(obj.error || '未知錯誤');
-                                }
-                            } catch (_) {
-                                // 忽略格式不正確的行
-                            }
-                        }
-                    }
-                    // 若尚有殘留緩衝行
-                    if (buffer.trim()) {
+                // 步驟 2: 呼叫 LLM API
+                const response = await callLLM(question, context);
+                
+                // 處理串流回應
+                answerContent.innerHTML = '';
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullText = '';
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+                    
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+                        
+                        const data = trimmed.slice(6); // 移除 'data: ' 前綴
+                        if (data === '[DONE]') continue;
+                        
                         try {
-                            const obj = JSON.parse(buffer.trim());
-                            if (obj.type === 'delta' && obj.content) {
-                                fullText += obj.content;
+                            const obj = JSON.parse(data);
+                            const delta = obj.choices?.[0]?.delta?.content;
+                            if (delta) {
+                                fullText += delta;
+                                // 先以純文字即時顯示，避免 Markdown 局部閃爍
                                 answerContent.textContent = fullText;
                             }
-                        } catch (_) {}
-                    }
-                    // 串流結束後再進行 Markdown 轉換
-                    answerContent.innerHTML = marked.parse(fullText);
-                } else {
-                    // 傳統 JSON 回傳
-                    const data = await response.json();
-                    if (data.success) {
-                        answerContent.innerHTML = marked.parse(data.answer);
-                    } else {
-                        answerContent.innerHTML = `<div class="error">錯誤：${data.error}</div>`;
+                        } catch (_) {
+                            // 忽略格式不正確的行
+                        }
                     }
                 }
                 
+                // 串流結束後再進行 Markdown 轉換
+                answerContent.innerHTML = marked.parse(fullText);
+                
             } catch (error) {
-                let errorMessage = '網路錯誤：' + error.message;
+                let errorMessage = '處理錯誤：' + error.message;
                 
                 if (error.name === 'AbortError') {
-                    errorMessage = `請求超時（${timeout/1000} 秒），請稍後再試或增加超時時間設定`;
+                    errorMessage = `請求超時，請稍後再試`;
                 } else if ((error.message || '').includes('Failed to fetch')) {
-                    errorMessage = '無法連接到伺服器，請檢查：\n1. API 伺服器是否正在運行\n2. API 基礎網址是否正確\n3. 防火牆或網路設定';
+                    errorMessage = '無法連接到服務，請檢查：\n1. 向量搜尋 API 是否正常運行\n2. LLM API 服務是否可達\n3. 網路連線狀態';
                 }
                 
                 answerContent.innerHTML = `<div class="error">${errorMessage}</div>`;

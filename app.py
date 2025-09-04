@@ -485,6 +485,64 @@ def api_ask():
             'error': f'系統錯誤：{str(e)}'
         }), 500
 
+@app.route('/api/search', methods=['POST'])
+def api_search():
+    """向量搜尋 API 端點"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'query' not in data:
+            return jsonify({
+                'success': False,
+                'error': '請提供查詢內容'
+            }), 400
+        
+        query = data['query'].strip()
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': '查詢不能為空'
+            }), 400
+        
+        # 確保 RAG 系統已初始化
+        if _index is None:
+            init_success = init_rag()
+            if not init_success:
+                return jsonify({
+                    'success': False,
+                    'error': '知識庫索引未建立，請先執行 python kb_rag.py build --folder knowledge_docs'
+                }), 500
+        
+        # 執行向量搜尋
+        from kb_rag import search, format_context
+        hits = search(_index, query, k=5)  # 使用 TOP_K=5
+        context = format_context(hits)
+        
+        # 回傳搜尋結果
+        results = []
+        for rank, (chunk, score) in enumerate(hits, 1):
+            results.append({
+                'rank': rank,
+                'score': float(score),
+                'source': chunk.source,
+                'text': chunk.text
+            })
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'context': context,
+            'results': results
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] 向量搜尋 API 錯誤: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': f'向量搜尋錯誤：{str(e)}'
+        }), 500
+
 @app.route('/api/health')
 def health():
     """健康檢查端點"""
