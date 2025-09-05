@@ -24,7 +24,7 @@ client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 # === 參數建議 ==============================================
 CHUNK_SIZE = 2048
 CHUNK_OVERLAP = 512
-TOP_K = 5
+TOP_K = 10
 INDEX_PATH = "kb.index"
 STORE_PATH = "kb_store.jsonl"
 SUMMARY_CACHE_PATH = "kb_summary_cache.json"
