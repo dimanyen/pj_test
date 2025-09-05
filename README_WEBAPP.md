@@ -42,12 +42,8 @@ python app.py
 
 ## 訪問網站
 
-### 方法一：獨立 HTML 檔案（推薦）
 1. 啟動 API 伺服器後，直接開啟 `index.html` 檔案
 2. 或訪問: http://localhost:5002
-
-### 方法二：嵌入式網頁
-訪問: http://localhost:5002/embedded
 
 **注意**: 埠號已從 5000 改為 5002
 
