@@ -31,13 +31,13 @@ STORE_PATH = "kb_store.jsonl"
 SUMMARY_CACHE_PATH = "kb_summary_cache.json"
 
 # 摘要相關參數
-SUMMARY_MAX_TOKENS = 280          # 目標摘要長度（粗估 token，會由模型自行截斷）
+SUMMARY_MAX_TOKENS = 150          # 目標摘要長度（粗估 token，會由模型自行截斷）
 SUMMARY_HEAD = "【文件摘要】"      # 放進每個 chunk 的前言標題
 SUMMARY_SEPARATOR = "\n--- 以上為文件摘要 ---\n"
 SUMMARY_PROMPT = (
     "你是嚴謹的技術文件摘要助手。請以繁體中文撰寫一段可供檢索前言使用的文件摘要，"
     "要求：\n"
-    "1) 100~250字為佳（不需逐字對應原文；抓重點與名詞）\n"
+    "1) 100~150字為佳（不需逐字對應原文；抓重點與名詞）\n"
     "2) 包含主題、目的、關鍵模組/名詞、可用查詢關鍵詞\n"
     "3) 不要使用條列符號，以短段落輸出\n"
 )

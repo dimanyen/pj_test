@@ -170,7 +170,7 @@ def api_search():
         
         # 執行向量搜尋
         from kb_rag import search, format_context
-        hits = search(_index, query, k=5)  # 使用 TOP_K=5
+        hits = search(_index, query, k=10)  # 使用 TOP_K=5
         context = format_context(hits)
         
         # 回傳搜尋結果
