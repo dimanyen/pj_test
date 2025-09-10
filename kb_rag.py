@@ -13,17 +13,18 @@ from openai import OpenAI
 # export LITELLM_BASE=https://llm.cubeapp945566.work
 # export LITELLM_API_KEY=sk-local-123
 BASE_URL = os.getenv("LITELLM_BASE", "https://llm.cubeapp945566.work")
-API_KEY  = os.getenv("LITELLM_API_KEY", "sk-local-123")
+API_KEY  = os.getenv("LITELLM_API_KEY", "sk-GhYWCOAf9uCrYTioB_mohQ")
 
 # EMBEDDING_MODEL = "bge-m3"
 EMBEDDING_MODEL = "intfloat-multilingual-e5-large"
+# EMBEDDING_MODEL = "embeddinggemma"
 CHAT_MODEL      = "gpt-oss-120b"
 
 client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
 # === 參數建議 ==============================================
-CHUNK_SIZE = 2048
-CHUNK_OVERLAP = 512
+CHUNK_SIZE = 384
+CHUNK_OVERLAP = 64
 TOP_K = 10
 INDEX_PATH = "kb.index"
 STORE_PATH = "kb_store.jsonl"

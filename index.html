@@ -437,6 +437,47 @@
             color: #666;
         }
         
+        .model-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .model-info-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .model-info-content {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .model-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        .model-description {
+            font-size: 0.9em;
+            opacity: 0.9;
+            color: #e8f4fd;
+        }
+        
         @media (max-width: 768px) {
             .input-group {
                 flex-direction: column;
@@ -468,6 +509,24 @@
             .header h1 {
                 font-size: 2em;
             }
+            
+            .model-info {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .model-info-title {
+                font-size: 1em;
+            }
+            
+            .model-name {
+                font-size: 1.1em;
+                padding: 6px 10px;
+            }
+            
+            .model-description {
+                font-size: 0.85em;
+            }
         }
     </style>
 </head>
@@ -483,6 +542,14 @@
             <div class="system-status">
                 <span class="status-indicator" id="statusIndicator"></span>
                 <span id="statusText">檢查系統狀態中...</span>
+            </div>
+            
+            <div class="model-info">
+                <div class="model-info-title">🤖 目前使用的模型</div>
+                <div class="model-info-content">
+                    <span class="model-name" id="currentModel">gpt-oss-120b</span>
+                    <span class="model-description">基於 OpenAI 格式的開源大語言模型</span>
+                </div>
             </div>
             
             <div class="input-section">
@@ -519,6 +586,30 @@
         function getApiBaseUrl() {
             const apiBaseUrlElement = document.getElementById('apiBaseUrl');
             return apiBaseUrlElement ? apiBaseUrlElement.value.trim() : 'http://localhost:5002';
+        }
+        
+        // 更新模型資訊顯示
+        function updateModelInfo() {
+            const currentModelElement = document.getElementById('currentModel');
+            if (currentModelElement) {
+                // 從程式碼中獲取目前使用的模型
+                const currentModel = 'gpt-oss-120b'; // 目前使用的模型
+                currentModelElement.textContent = currentModel;
+                
+                // 根據模型更新描述
+                const modelDescriptions = {
+                    'gpt-oss-120b': '基於 OpenAI 格式的開源大語言模型 (120B 參數)',
+                    'qwen3-235b': '通義千問 3 大語言模型 (235B 參數)',
+                    'gpt-4': 'OpenAI GPT-4 模型',
+                    'gpt-3.5-turbo': 'OpenAI GPT-3.5 Turbo 模型'
+                };
+                
+                const description = modelDescriptions[currentModel] || '未知模型';
+                const descriptionElement = document.querySelector('.model-description');
+                if (descriptionElement) {
+                    descriptionElement.textContent = description;
+                }
+            }
         }
         
         // 獲取請求超時時間
@@ -610,7 +701,7 @@
         // 直接呼叫 LLM API
         async function callLLM(question, context) {
             const LLM_BASE_URL = 'https://llm.cubeapp945566.work';
-            const API_KEY = 'sk-local-123';
+            const API_KEY = 'sk-GhYWCOAf9uCrYTioB_mohQ';
             const timeout = getRequestTimeout();
             
             const system = (
@@ -637,11 +728,13 @@
                     },
                     body: JSON.stringify({
                         model: 'gpt-oss-120b',
+                        // model: 'qwen3-235b',
                         messages: [
                             { role: 'system', content: system },
                             { role: 'user', content: user }
                         ],
                         temperature: 0.2,
+                        
                         stream: true
                     }),
                     signal: controller.signal
@@ -796,6 +889,7 @@
         
         // 頁面載入時檢查系統狀態
         window.onload = function() {
+            updateModelInfo();
             checkSystemStatus();
         };
         

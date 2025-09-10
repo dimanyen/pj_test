@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM API 壓力測試工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .config-panel {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+        }
+
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .metrics-panel {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #4facfe;
+            margin-bottom: 10px;
+        }
+
+        .metric-unit {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-idle { background: #6c757d; }
+        .status-running { background: #28a745; animation: pulse 2s infinite; }
+        .status-error { background: #dc3545; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .log-panel {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-info { color: #63b3ed; }
+        .log-success { color: #68d391; }
+        .log-error { color: #fc8181; }
+        .log-warning { color: #fbd38d; }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .control-buttons {
+                flex-direction: column;
+            }
+            
+            .metrics-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 LLM API 壓力測試工具</h1>
+            <p>專業的 LiteLLM / OpenAI API 效能測試平台</p>
+        </div>
+
+        <div class="config-panel">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>API Base URL</label>
+                    <input type="text" id="apiUrl" placeholder="https://llm.cubeapp945566.work/v1" value="https://llm.cubeapp945566.work/v1">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-...">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>模型名稱</label>
+                    <input type="text" id="modelName" placeholder="gpt-oss-120b" value="gpt-oss-120b">
+                </div>
+                <div class="form-group">
+                    <label>並發數</label>
+                    <input type="number" id="concurrency" value="5" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label>總請求數</label>
+                    <input type="number" id="totalRequests" value="5" min="1">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>測試訊息</label>
+                    <textarea id="testMessage" rows="3" placeholder="請輸入測試用的訊息...">請用繁體中文回答：什麼是人工智慧？請簡潔回答。</textarea>
+                </div>
+            </div>
+
+            <div class="control-buttons">
+                <button class="btn btn-start" id="startBtn">開始壓測</button>
+                <button class="btn btn-stop" id="stopBtn">停止測試</button>
+            </div>
+        </div>
+
+        <div class="metrics-panel">
+            <div class="metric-card">
+                <div class="metric-title">
+                    <span class="status-indicator status-idle" id="statusIndicator"></span>
+                    測試狀態
+                </div>
+                <div class="metric-value" id="statusText">待機中</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="metric-unit" id="progressText">0 / 0 完成</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">🚀 吞吐量 (RPS)</div>
+                <div class="metric-value" id="throughput">0</div>
+                <div class="metric-unit">Requests/Second</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">⏱️ 平均回應時間</div>
+                <div class="metric-value" id="avgLatency">0</div>
+                <div class="metric-unit">毫秒</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">📊 P95 回應時間</div>
+                <div class="metric-value" id="p95Latency">0</div>
+                <div class="metric-unit">毫秒</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">📈 P99 回應時間</div>
+                <div class="metric-value" id="p99Latency">0</div>
+                <div class="metric-unit">毫秒</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">🔤 Token 輸出速率</div>
+                <div class="metric-value" id="tokensPerSecond">0</div>
+                <div class="metric-unit">Tokens/Second</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">✅ 成功率</div>
+                <div class="metric-value" id="successRate">0</div>
+                <div class="metric-unit">%</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-title">⚠️ 錯誤數</div>
+                <div class="metric-value" id="errorCount">0</div>
+                <div class="metric-unit">Errors</div>
+            </div>
+        </div>
+
+        <div class="log-panel" id="logPanel">
+            <div class="log-entry log-info">🎯 系統就緒，請配置參數後開始測試...</div>
+        </div>
+    </div>
+
+    <script>
+        class LLMStressTester {
+            constructor() {
+                this.isRunning = false;
+                this.startTime = null;
+                this.completedRequests = 0;
+                this.totalRequests = 0;
+                this.latencies = [];
+                this.errors = 0;
+                this.totalTokens = 0;
+                this.activeRequests = new Set();
+                
+                this.initializeElements();
+                this.bindEvents();
+            }
+
+            initializeElements() {
+                this.elements = {
+                    startBtn: document.getElementById('startBtn'),
+                    stopBtn: document.getElementById('stopBtn'),
+                    apiUrl: document.getElementById('apiUrl'),
+                    apiKey: document.getElementById('apiKey'),
+                    modelName: document.getElementById('modelName'),
+                    concurrency: document.getElementById('concurrency'),
+                    totalRequests: document.getElementById('totalRequests'),
+                    testMessage: document.getElementById('testMessage'),
+                    statusIndicator: document.getElementById('statusIndicator'),
+                    statusText: document.getElementById('statusText'),
+                    progressFill: document.getElementById('progressFill'),
+                    progressText: document.getElementById('progressText'),
+                    throughput: document.getElementById('throughput'),
+                    avgLatency: document.getElementById('avgLatency'),
+                    p95Latency: document.getElementById('p95Latency'),
+                    p99Latency: document.getElementById('p99Latency'),
+                    tokensPerSecond: document.getElementById('tokensPerSecond'),
+                    successRate: document.getElementById('successRate'),
+                    errorCount: document.getElementById('errorCount'),
+                    logPanel: document.getElementById('logPanel')
+                };
+            }
+
+            bindEvents() {
+                this.elements.startBtn.addEventListener('click', () => this.startTest());
+                this.elements.stopBtn.addEventListener('click', () => this.stopTest());
+            }
+
+            log(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry log-${type}`;
+                logEntry.textContent = `[${timestamp}] ${message}`;
+                
+                this.elements.logPanel.appendChild(logEntry);
+                this.elements.logPanel.scrollTop = this.elements.logPanel.scrollHeight;
+            }
+
+            updateStatus(status, className = 'idle') {
+                this.elements.statusText.textContent = status;
+                this.elements.statusIndicator.className = `status-indicator status-${className}`;
+            }
+
+            updateProgress() {
+                const progress = (this.completedRequests / this.totalRequests) * 100;
+                this.elements.progressFill.style.width = `${progress}%`;
+                this.elements.progressText.textContent = `${this.completedRequests} / ${this.totalRequests} 完成`;
+            }
+
+            updateMetrics() {
+                if (this.completedRequests === 0) return;
+
+                const currentTime = Date.now();
+                const elapsedSeconds = (currentTime - this.startTime) / 1000;
+                
+                // 計算吞吐量
+                const throughput = this.completedRequests / elapsedSeconds;
+                this.elements.throughput.textContent = throughput.toFixed(2);
+
+                // 計算延遲指標
+                if (this.latencies.length > 0) {
+                    const sortedLatencies = [...this.latencies].sort((a, b) => a - b);
+                    const avgLatency = this.latencies.reduce((a, b) => a + b) / this.latencies.length;
+                    const p95Index = Math.floor(sortedLatencies.length * 0.95);
+                    const p99Index = Math.floor(sortedLatencies.length * 0.99);
+
+                    this.elements.avgLatency.textContent = Math.round(avgLatency);
+                    this.elements.p95Latency.textContent = Math.round(sortedLatencies[p95Index] || 0);
+                    this.elements.p99Latency.textContent = Math.round(sortedLatencies[p99Index] || 0);
+                }
+
+                // Token 輸出速率
+                const tokensPerSecond = this.totalTokens / elapsedSeconds;
+                this.elements.tokensPerSecond.textContent = tokensPerSecond.toFixed(1);
+
+                // 成功率
+                const successRate = ((this.completedRequests - this.errors) / this.completedRequests) * 100;
+                this.elements.successRate.textContent = successRate.toFixed(1);
+
+                // 錯誤數
+                this.elements.errorCount.textContent = this.errors;
+            }
+
+            async makeRequest() {
+                const requestId = Math.random().toString(36).substring(7);
+                this.activeRequests.add(requestId);
+                
+                const startTime = Date.now();
+                
+                try {
+                    const response = await fetch(`${this.elements.apiUrl.value}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.elements.apiKey.value}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: this.elements.modelName.value,
+                            messages: [
+                                {
+                                    role: 'user',
+                                    content: this.elements.testMessage.value
+                                }
+                            ],
+                            max_tokens: 150,
+                            temperature: 0.7
+                        })
+                    });
+
+                    const endTime = Date.now();
+                    const latency = endTime - startTime;
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const tokens = data.usage?.completion_tokens || 0;
+                        
+                        this.latencies.push(latency);
+                        this.totalTokens += tokens;
+                        
+                        this.log(`✅ 請求成功 - 延遲: ${latency}ms, Tokens: ${tokens}`, 'success');
+                    } else {
+                        this.errors++;
+                        this.log(`❌ 請求失敗 - HTTP ${response.status}: ${response.statusText}`, 'error');
+                    }
+                } catch (error) {
+                    this.errors++;
+                    this.log(`🚫 請求錯誤: ${error.message}`, 'error');
+                } finally {
+                    this.activeRequests.delete(requestId);
+                    this.completedRequests++;
+                    this.updateProgress();
+                    this.updateMetrics();
+
+                    if (this.completedRequests >= this.totalRequests) {
+                        this.finishTest();
+                    }
+                }
+            }
+
+            async startTest() {
+                // 驗證輸入
+                if (!this.elements.apiUrl.value || !this.elements.apiKey.value) {
+                    this.log('⚠️ 請填入 API URL 和 API Key', 'warning');
+                    return;
+                }
+
+                this.isRunning = true;
+                this.startTime = Date.now();
+                this.completedRequests = 0;
+                this.totalRequests = parseInt(this.elements.totalRequests.value);
+                this.latencies = [];
+                this.errors = 0;
+                this.totalTokens = 0;
+                this.activeRequests.clear();
+
+                this.elements.startBtn.disabled = true;
+                this.updateStatus('測試進行中...', 'running');
+                this.log(`🚀 開始壓力測試 - 並發數: ${this.elements.concurrency.value}, 總請求數: ${this.totalRequests}`, 'info');
+
+                const concurrency = parseInt(this.elements.concurrency.value);
+                const requestsPerBatch = Math.min(concurrency, this.totalRequests);
+
+                // 開始發送請求
+                for (let i = 0; i < this.totalRequests; i += requestsPerBatch) {
+                    if (!this.isRunning) break;
+
+                    const batch = [];
+                    const batchSize = Math.min(requestsPerBatch, this.totalRequests - i);
+
+                    for (let j = 0; j < batchSize; j++) {
+                        batch.push(this.makeRequest());
+                    }
+
+                    await Promise.all(batch);
+                    
+                    // 小延遲防止過度密集請求
+                    if (i + requestsPerBatch < this.totalRequests) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+            }
+
+            stopTest() {
+                this.isRunning = false;
+                this.elements.startBtn.disabled = false;
+                this.updateStatus('測試已停止', 'error');
+                this.log('🛑 測試被手動停止', 'warning');
+            }
+
+            finishTest() {
+                this.isRunning = false;
+                this.elements.startBtn.disabled = false;
+                this.updateStatus('測試完成', 'idle');
+                
+                const duration = (Date.now() - this.startTime) / 1000;
+                this.log(`🎉 測試完成！總耗時: ${duration.toFixed(2)}秒`, 'success');
+                this.log(`📊 最終結果 - 成功: ${this.completedRequests - this.errors}, 失敗: ${this.errors}`, 'info');
+            }
+        }
+
+        // 初始化應用
+        const stressTester = new LLMStressTester();
+    </script>
+</body>
+</html>
