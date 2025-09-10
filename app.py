@@ -180,14 +180,17 @@ def api_search():
                 'rank': rank,
                 'score': float(score),
                 'source': chunk.source,
-                'text': chunk.text
+                'text': chunk.text,
+                'chunk_id': f"chunk_{rank}"  # 添加唯一 ID
             })
         
         return jsonify({
             'success': True,
             'query': query,
             'context': context,
-            'results': results
+            'results': results,
+            'chunks': results,  # 添加 chunks 欄位，與 results 相同
+            'total_chunks': len(results)
         })
         
     except Exception as e:

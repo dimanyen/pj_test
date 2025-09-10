@@ -404,6 +404,201 @@
             margin: 24px 0;
         }
         
+        /* Chunks 區域樣式 */
+        .chunks-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .chunks-title {
+            color: #2c3e50;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chunks-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .chunk-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .chunk-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .chunk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .chunk-rank {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .chunk-score {
+            background: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .chunk-source {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        
+        .chunk-preview {
+            color: #495057;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .chunk-expand-icon {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: #6c757d;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+        
+        .chunk-item:hover .chunk-expand-icon {
+            opacity: 1;
+            color: #667eea;
+        }
+        
+        /* 詳細內容彈窗樣式 */
+        .chunk-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .chunk-modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .chunk-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chunk-modal-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .chunk-modal-close {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+        }
+        
+        .chunk-modal-close:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .chunk-modal-body {
+            padding: 25px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .chunk-modal-source {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            color: #495057;
+            border-left: 4px solid #667eea;
+        }
+        
+        .chunk-modal-text {
+            color: #2c3e50;
+            line-height: 1.6;
+            font-size: 15px;
+            white-space: pre-wrap;
+        }
+        
         .error {
             background: #fee;
             border: 1px solid #fcc;
@@ -576,6 +771,28 @@
                     4. 點擊「提問」按鈕或按 Enter 鍵
                 </div>
             </div>
+            
+            <!-- Chunks 顯示區域 -->
+            <div class="chunks-section" id="chunksSection" style="display: none;">
+                <div class="chunks-title">📚 相關文檔片段</div>
+                <div class="chunks-content" id="chunksContent">
+                    <!-- Chunks 列表將在這裡動態生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chunk 詳細內容彈窗 -->
+    <div class="chunk-modal" id="chunkModal">
+        <div class="chunk-modal-content">
+            <div class="chunk-modal-header">
+                <h3 class="chunk-modal-title" id="chunkModalTitle">文檔片段詳情</h3>
+                <span class="chunk-modal-close" id="chunkModalClose">&times;</span>
+            </div>
+            <div class="chunk-modal-body">
+                <div class="chunk-modal-source" id="chunkModalSource"></div>
+                <div class="chunk-modal-text" id="chunkModalText"></div>
+            </div>
         </div>
     </div>
 
@@ -662,6 +879,9 @@
             }
         }
         
+        // 全域變數儲存搜尋結果
+        let currentSearchResults = null;
+        
         // 向量搜尋函數
         async function searchVector(question) {
             const baseUrl = getApiBaseUrl();
@@ -690,6 +910,14 @@
                 if (!data.success) {
                     throw new Error(data.error || '向量搜尋失敗');
                 }
+                
+                // 儲存搜尋結果到全域變數
+                currentSearchResults = {
+                    query: data.query,
+                    chunks: data.chunks || data.results,
+                    totalChunks: data.total_chunks || (data.chunks ? data.chunks.length : 0),
+                    context: data.context
+                };
                 
                 return data.context;
             } catch (error) {
@@ -739,7 +967,22 @@
                     }),
                     signal: controller.signal
                 });
-                
+                // 將 request body 以 JSON 格式輸出到 console（僅限開發除錯用，正式環境請移除）
+                try {
+                    const bodyObj = {
+                        model: 'gpt-oss-120b',
+                        // model: 'qwen3-235b',
+                        messages: [
+                            { role: 'system', content: system },
+                            { role: 'user', content: user }
+                        ],
+                        temperature: 0.2,
+                        stream: true
+                    };
+                    console.log("送出 LLM API 的 JSON body：", JSON.stringify(bodyObj, null, 2));
+                } catch (e) {
+                    console.warn("無法序列化 LLM API body", e);
+                }
                 clearTimeout(timeoutId);
                 
                 if (!response.ok) {
@@ -770,6 +1013,12 @@
             isLoading = true;
             askBtn.disabled = true;
             askBtn.textContent = '思考中...';
+            
+            // 隱藏之前的 chunks 列表
+            const chunksSection = document.getElementById('chunksSection');
+            if (chunksSection) {
+                chunksSection.style.display = 'none';
+            }
             
             // 顯示載入動畫
             answerContent.innerHTML = `
@@ -855,6 +1104,9 @@
                 // 串流結束後再進行 Markdown 轉換
                 answerContent.innerHTML = marked.parse(fullText);
                 
+                // 顯示 chunks 列表
+                displayChunks();
+                
             } catch (error) {
                 let errorMessage = '處理錯誤：' + error.message;
                 
@@ -872,6 +1124,81 @@
             }
         }
         
+        // 顯示 chunks 列表
+        function displayChunks() {
+            if (!currentSearchResults || !currentSearchResults.chunks) {
+                return;
+            }
+            
+            const chunksSection = document.getElementById('chunksSection');
+            const chunksContent = document.getElementById('chunksContent');
+            
+            if (!chunksSection || !chunksContent) {
+                return;
+            }
+            
+            // 顯示 chunks 區域
+            chunksSection.style.display = 'block';
+            
+            // 生成 chunks 列表 HTML
+            const chunksHtml = currentSearchResults.chunks.map((chunk, index) => `
+                <div class="chunk-item" onclick="showChunkDetail(${index})">
+                    <div class="chunk-header">
+                        <span class="chunk-rank">#${chunk.rank}</span>
+                        <span class="chunk-score">相關度: ${(chunk.score * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="chunk-source">📄 ${chunk.source}</div>
+                    <div class="chunk-preview">${chunk.text}</div>
+                    <div class="chunk-expand-icon">🔍</div>
+                </div>
+            `).join('');
+            
+            chunksContent.innerHTML = chunksHtml;
+        }
+        
+        // 顯示 chunk 詳細內容
+        function showChunkDetail(chunkIndex) {
+            if (!currentSearchResults || !currentSearchResults.chunks || !currentSearchResults.chunks[chunkIndex]) {
+                return;
+            }
+            
+            const chunk = currentSearchResults.chunks[chunkIndex];
+            const modal = document.getElementById('chunkModal');
+            const modalTitle = document.getElementById('chunkModalTitle');
+            const modalSource = document.getElementById('chunkModalSource');
+            const modalText = document.getElementById('chunkModalText');
+            
+            if (!modal || !modalTitle || !modalSource || !modalText) {
+                return;
+            }
+            
+            // 設置彈窗內容
+            modalTitle.textContent = `文檔片段 #${chunk.rank} (相關度: ${(chunk.score * 100).toFixed(1)}%)`;
+            modalSource.textContent = chunk.source;
+            modalText.textContent = chunk.text;
+            
+            // 顯示彈窗
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // 防止背景滾動
+        }
+        
+        // 關閉 chunk 詳細內容彈窗
+        function closeChunkModal() {
+            const modal = document.getElementById('chunkModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto'; // 恢復背景滾動
+            }
+        }
+        
+        // 點擊彈窗背景關閉
+        function handleModalClick(event) {
+            const modal = document.getElementById('chunkModal');
+            if (event.target === modal) {
+                closeChunkModal();
+            }
+        }
+        
         // 按 Enter 鍵提問
         document.getElementById('questionInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !isLoading) {
@@ -886,6 +1213,27 @@
                 setTimeout(checkSystemStatus, 500);
             });
         }
+        
+        // 添加彈窗事件監聽器
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('chunkModal');
+            const closeBtn = document.getElementById('chunkModalClose');
+            
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeChunkModal);
+            }
+            
+            if (modal) {
+                modal.addEventListener('click', handleModalClick);
+            }
+            
+            // 按 ESC 鍵關閉彈窗
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeChunkModal();
+                }
+            });
+        });
         
         // 頁面載入時檢查系統狀態
         window.onload = function() {

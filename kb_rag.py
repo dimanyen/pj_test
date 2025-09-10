@@ -65,19 +65,56 @@ def read_text_files(folder: str) -> List[Tuple[str, str]]:
     return docs
 
 def chunk_text(text: str, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP) -> List[str]:
+    """
+    使用 --- 符號作為分段依據來切分文本
+    每個 chunk 會包含完整的資料區塊，且不超過指定大小
+    """
     text = text.strip().replace("\r\n", "\n")
+    
+    # 使用 --- 符號分割文本
+    sections = text.split("---")
     chunks = []
-    start = 0
-    n = len(text)
-    while start < n:
-        end = min(start + size, n)
-        chunks.append(text[start:end])
-        if end == n:
-            break
-        start = end - overlap
-        if start < 0:
+    current_chunk = ""
+    
+    for i, section in enumerate(sections):
+        section = section.strip()
+        if not section:
+            continue
+            
+        # 如果當前 chunk 加上新 section 會超過大小限制
+        if current_chunk and len(current_chunk) + len(section) + 5 > size:  # +5 for "\n---\n"
+            # 保存當前 chunk
+            chunks.append(current_chunk.strip())
+            current_chunk = section
+        else:
+            # 將 section 加入當前 chunk
+            if current_chunk:
+                current_chunk += "\n---\n" + section
+            else:
+                current_chunk = section
+    
+    # 處理最後一個 chunk
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    # 如果某個 chunk 仍然太大，需要進一步切分
+    final_chunks = []
+    for chunk in chunks:
+        if len(chunk) <= size:
+            final_chunks.append(chunk)
+        else:
+            # 對於過大的 chunk，使用滑動窗口方式切分
             start = 0
-    return chunks
+            while start < len(chunk):
+                end = min(start + size, len(chunk))
+                final_chunks.append(chunk[start:end])
+                if end == len(chunk):
+                    break
+                start = end - overlap
+                if start < 0:
+                    start = 0
+    
+    return final_chunks
 
 # === 工具：Embedding ========================================
 def embed_texts(texts: List[str]) -> np.ndarray:
