@@ -939,10 +939,10 @@
                 "score越高的段落應該就越相關，需要依排序來決定回答的內容。列出所有相關人員，並依 score 排序，同一主題要盡量完整覆蓋，即使重複或不同層級，不需要顯示score"
             );
             
+            const todayStr = new Date().toISOString().slice(0, 10);
             const user = (
-                `查詢：${question}\n\n` +
+                `查詢：${question} #Today: ${todayStr}\n\n` +
                 `檢索內容（依相關度排序；每段已含該文件摘要前言）：\n${context}\n\n`
-                
             );
             
             const controller = new AbortController();

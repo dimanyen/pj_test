@@ -152,7 +152,9 @@ def api_search():
                 'error': '請提供查詢內容'
             }), 400
         
-        query = data['query'].strip()
+        from datetime import datetime
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        query = f"{data['query'].strip()} #Today: {today_str}"
         if not query:
             return jsonify({
                 'success': False,

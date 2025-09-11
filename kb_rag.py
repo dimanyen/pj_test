@@ -67,7 +67,9 @@ def read_text_files(folder: str) -> List[Tuple[str, str]]:
 def chunk_text(text: str, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP) -> List[str]:
     """
     使用 --- 符號作為分段依據來切分文本
-    每個 chunk 會包含完整的資料區塊，且不超過指定大小
+    確保資料完整性：
+    - 如果一個區塊就大於指定大小，則至少要保持一個區塊完整（可以超過指定大小）
+    - 若至少有一個區塊，則就剛好小於指定大小即可
     """
     text = text.strip().replace("\r\n", "\n")
     
@@ -97,22 +99,55 @@ def chunk_text(text: str, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP) -> List[str]:
     if current_chunk:
         chunks.append(current_chunk.strip())
     
-    # 如果某個 chunk 仍然太大，需要進一步切分
+    # 處理過大的 chunk，確保資料完整性
     final_chunks = []
     for chunk in chunks:
         if len(chunk) <= size:
+            # 小於等於指定大小，直接加入
             final_chunks.append(chunk)
         else:
-            # 對於過大的 chunk，使用滑動窗口方式切分
-            start = 0
-            while start < len(chunk):
-                end = min(start + size, len(chunk))
-                final_chunks.append(chunk[start:end])
-                if end == len(chunk):
-                    break
-                start = end - overlap
-                if start < 0:
-                    start = 0
+            # 檢查是否只有一個區塊（沒有 --- 分隔符）
+            if "---" not in chunk:
+                # 單一區塊超過大小，保持完整（允許超過指定大小）
+                final_chunks.append(chunk)
+            else:
+                # 多個區塊的 chunk 超過大小，嘗試重新分割
+                # 先嘗試按 --- 重新分割，確保每個區塊完整
+                sub_sections = chunk.split("---")
+                temp_chunk = ""
+                
+                for j, sub_section in enumerate(sub_sections):
+                    sub_section = sub_section.strip()
+                    if not sub_section:
+                        continue
+                    
+                    # 如果當前 temp_chunk 加上新 sub_section 會超過大小限制
+                    if temp_chunk and len(temp_chunk) + len(sub_section) + 5 > size:
+                        # 保存當前 temp_chunk
+                        final_chunks.append(temp_chunk.strip())
+                        temp_chunk = sub_section
+                    else:
+                        # 將 sub_section 加入當前 temp_chunk
+                        if temp_chunk:
+                            temp_chunk += "\n---\n" + sub_section
+                        else:
+                            temp_chunk = sub_section
+                
+                # 處理最後一個 temp_chunk
+                if temp_chunk:
+                    if len(temp_chunk) <= size:
+                        final_chunks.append(temp_chunk.strip())
+                    else:
+                        # 如果仍然太大，使用滑動窗口方式切分（保持重疊）
+                        start = 0
+                        while start < len(temp_chunk):
+                            end = min(start + size, len(temp_chunk))
+                            final_chunks.append(temp_chunk[start:end])
+                            if end == len(temp_chunk):
+                                break
+                            start = end - overlap
+                            if start < 0:
+                                start = 0
     
     return final_chunks
 
@@ -139,23 +174,50 @@ def save_summary_cache(cache: Dict[str, str]):
 def safe_head(text: str, max_chars: int) -> str:
     return text.strip().replace("\r\n", " ").replace("\n", " ")[:max_chars]
 
-def summarize_document(doc_text: str, source_path: str, cache: Dict[str, str]) -> str:
-    # 以 source_path 當 key（若內容常變動，可改成內容 hash）
-    if source_path in cache and cache[source_path].strip():
-        return cache[source_path]
+def chunk_text_for_summary(text: str, chunk_size: int = 50000) -> List[str]:
+    """
+    將文件切分為指定大小的段落，用於分段摘要
+    """
+    text = text.strip().replace("\r\n", "\n")
+    chunks = []
+    start = 0
+    
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        
+        # 嘗試在句號、換行符或段落邊界切分，避免切斷句子
+        if end < len(text):
+            # 尋找合適的切分點
+            for i in range(end, max(start + chunk_size - 1000, start), -1):
+                if text[i] in ['。', '\n', '\n\n']:
+                    end = i + 1
+                    break
+        
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        
+        start = end
+    
+    return chunks
 
-    # 控制輸入長度避免 prompt 過大（粗略取前 ~6000 字）
-    doc_snippet = doc_text[:12000]
-
+def summarize_chunk(chunk_text: str, chunk_index: int, total_chunks: int) -> str:
+    """
+    對單個文件段落進行摘要
+    """
     try:
         messages = [
             {"role": "system", "content": "你是專業的技術與產品文件摘要助手。"},
             {
                 "role": "user",
                 "content": (
-                    SUMMARY_PROMPT +
-                    "\n\n以下為文件內容片段（可能非全文）：\n" +
-                    doc_snippet
+                    f"請為以下文件段落（第 {chunk_index + 1}/{total_chunks} 段）撰寫摘要：\n"
+                    "要求：\n"
+                    "1) 80~120字為佳，抓重點與關鍵名詞\n"
+                    "2) 包含該段落的主題、目的、關鍵模組/名詞\n"
+                    "3) 不要使用條列符號，以短段落輸出\n"
+                    "4) 摘要開頭標明段落序號\n\n"
+                    f"文件段落內容：\n{chunk_text}"
                 )
             }
         ]
@@ -163,20 +225,70 @@ def summarize_document(doc_text: str, source_path: str, cache: Dict[str, str]) -
             model=CHAT_MODEL,
             messages=messages,
             temperature=0.2
-            
         )
         summary = resp.choices[0].message.content.strip()
-        # 簡單清洗
         summary = summary.replace("\n\n", "\n").strip()
         if not summary:
             raise ValueError("空摘要")
+        return summary
     except Exception as e:
-        print(f"[WARN] 產生摘要失敗，使用前置截斷作為摘要: {e}")
-        summary = f"本文重點（自動截斷）：{safe_head(doc_text, 400)}"
+        print(f"[WARN] 段落 {chunk_index + 1} 摘要失敗: {e}")
+        return f"段落 {chunk_index + 1} 重點（自動截斷）：{safe_head(chunk_text, 200)}"
 
-    cache[source_path] = summary
+def summarize_document(doc_text: str, source_path: str, cache: Dict[str, str]) -> str:
+    # 以 source_path 當 key（若內容常變動，可改成內容 hash）
+    if source_path in cache and cache[source_path].strip():
+        return cache[source_path]
+
+    print(f"[INFO] 開始分段摘要處理：{source_path}")
+    
+    # 將文件切分為50000字的段落
+    text_chunks = chunk_text_for_summary(doc_text, 50000)
+    print(f"[INFO] 文件切分為 {len(text_chunks)} 個段落")
+    
+    # 對每個段落進行摘要
+    chunk_summaries = []
+    for i, chunk in enumerate(text_chunks):
+        print(f"[INFO] 處理段落 {i + 1}/{len(text_chunks)}")
+        chunk_summary = summarize_chunk(chunk, i, len(text_chunks))
+        chunk_summaries.append(chunk_summary)
+    
+    # 將所有段落摘要匯整為完整文件摘要
+    try:
+        combined_summaries = "\n\n".join([f"段落 {i+1}: {summary}" for i, summary in enumerate(chunk_summaries)])
+        
+        messages = [
+            {"role": "system", "content": "你是專業的技術與產品文件摘要助手。"},
+            {
+                "role": "user",
+                "content": (
+                    "請將以下各段落摘要匯整為一份完整的文件摘要：\n"
+                    "要求：\n"
+                    "1) 100~150字為佳（不需逐字對應原文；抓重點與名詞）\n"
+                    "2) 包含主題、目的、關鍵模組/名詞、可用查詢關鍵詞\n"
+                    "3) 不要使用條列符號，以短段落輸出\n"
+                    "4) 整合各段落重點，形成完整文件概覽\n\n"
+                    f"各段落摘要：\n{combined_summaries}"
+                )
+            }
+        ]
+        resp = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=messages,
+            temperature=0.2
+        )
+        final_summary = resp.choices[0].message.content.strip()
+        final_summary = final_summary.replace("\n\n", "\n").strip()
+        if not final_summary:
+            raise ValueError("空摘要")
+    except Exception as e:
+        print(f"[WARN] 最終摘要匯整失敗，使用段落摘要串接: {e}")
+        final_summary = "文件摘要（段落摘要串接）：\n" + "\n".join(chunk_summaries)
+
+    cache[source_path] = final_summary
     save_summary_cache(cache)
-    return summary
+    print(f"[INFO] 完成文件摘要：{final_summary[:100]}...")
+    return final_summary
 
 def attach_summary_prefix(summary: str, chunk_text: str) -> str:
     # 將摘要作為前言，灌入每個 chunk
