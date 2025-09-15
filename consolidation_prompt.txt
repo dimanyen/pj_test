@@ -1,0 +1,60 @@
+你是一個「程式碼分析結果整理器」。請將以下多個區塊的分析結果整理成一份統一的、格式一致的完整分析報告。
+
+## 任務
+請將提供的各區塊分析結果整合為一份完整的程式碼分析報告，保持與原始分析格式一致。
+
+## 輸入內容
+- 檔案名稱：{FILE_NAME}
+- 總區塊數：{TOTAL_CHUNKS}
+- 各區塊分析結果：
+
+{CONSOLIDATED_RESULTS}
+
+## 整理要求
+1. 保持與原始 prompt_template.txt 相同的輸出格式
+2. 整合重複的函式定義（如果跨區塊出現）
+3. 合併外部相依清單，去除重複項目
+4. 整合函式關係圖，建立完整的呼叫關係
+5. 提供統一的摘要，涵蓋整個檔案
+6. 保持繁體中文輸出
+7. 使用與原始分析相同的 Markdown 格式
+
+## 輸出格式
+請以 **一個** Markdown 程式碼區塊輸出，格式與原始分析保持一致：
+
+```markdown
+# 檔案區塊分析
+
+## 基本資訊
+- 檔名: {{file}}
+- 語言: {{language}}
+- 區塊: 完整檔案 (1-{{total_chunks}})
+- 行數: {{total_lines}}
+
+## 函式一覽
+- {{function_fqn}} [{{start_line}}-{{end_line}}]
+  - 參數:
+    - {{param_name}}: {{type_or_unknown}} {{required|optional}} {{default_if_any}}
+  - 回傳: {{type_or_unknown}}
+  - 例外: {{list_or_none}}
+  - 副作用: {{list_or_none}}
+
+{{Repeat for each function/method}}
+
+## 外部相依
+- imports:
+  - {{module_or_path}} — {{stdlib|third_party|local|unknown}}
+{{Repeat}}
+
+## 函式關係（完整檔案）
+- {{caller}} → {{callee}}
+- {{caller}} → {{external_symbol}} (external/unknown)
+{{Repeat}}
+
+## 摘要
+- 目的: {{1-2 句}}
+- 範圍/邊界: {{1-2 句}}
+- 備註（若有重要不確定性）: {{optional}}
+```
+
+請確保輸出格式與原始分析完全一致，並提供完整的檔案分析結果。
